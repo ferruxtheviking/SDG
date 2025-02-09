@@ -1,2 +1,1 @@
-# SDG
-Prueba Tecnica
+# SDG Prueba Tecnica
