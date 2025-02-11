@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  airflow:
+    image: apache/airflow
+    container_name: airflow
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - LOAD_EX=y
+      - AIRFLOW_HOME=/opt/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqlconnector://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+    ports:
+      - "8090:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+    command: >
+      bash -c "airflow db init &&
+               airflow users create --username admin --password ${ADMIN_PASSWORD} --firstname Admin --lastname User --role Admin --email admin@example.com &&
+               airflow scheduler &
+               airflow webserver"
+
+volumes:
+  mysql_data:
