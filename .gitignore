@@ -1,5 +1,1 @@
 .env
-data/
-dags/
-logs/
-plugins/

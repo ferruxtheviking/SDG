@@ -5,6 +5,7 @@ services:
     image: mysql:8.0
     container_name: mysql
     restart: always
+    command: --explicit-defaults-for-timestamp=1
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -21,26 +22,30 @@ services:
       retries: 3
 
   airflow:
-    image: apache/airflow
+    image: apache/airflow:2.6.2
     container_name: airflow
     restart: always
     depends_on:
       mysql:
         condition: service_healthy
     environment:
-      - LOAD_EX=y
-      - AIRFLOW_HOME=/opt/airflow
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqlconnector://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      LOAD_EX: y
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+mysqldb://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS: utf8mb3_bin
     ports:
       - "8090:8080"
     volumes:
       - ./dags:/opt/airflow/dags
+      - /data:/data
     command: >
-      bash -c "airflow db init &&
-               airflow users create --username admin --password ${ADMIN_PASSWORD} --firstname Admin --lastname User --role Admin --email admin@example.com &&
-               airflow scheduler &
-               airflow webserver"
+      bash -c "airflow db init && airflow webserver"
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+#      interval: 20s
+#      timeout: 5s
+#      retries: 4
 
 volumes:
   mysql_data:

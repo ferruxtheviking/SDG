@@ -1,10 +1,51 @@
 import os
 import json
+from typing import Tuple, List
 from pathlib import Path
 from datetime import datetime
 from parameters import validation_functions, formats, savemode
 
-def process_data(metadata: dict, input_data: dict) -> tuple[list, list]:
+def load_input_data_call(**kwargs):
+    metadata = kwargs['dag_run'].conf
+    return load_input_data(metadata)
+
+def process_data_call(**kwargs):
+    metadata = kwargs['dag_run'].conf
+    input_data = kwargs['ti'].xcom_pull(task_ids='load_input_data')
+    return process_data(metadata, input_data)
+
+def save_data_call(**kwargs):
+    metadata = kwargs['dag_run'].conf
+    valid_data = kwargs['ti'].xcom_pull(task_ids='process_data')[0]
+    invalid_data = kwargs['ti'].xcom_pull(task_ids='process_data')[1]
+    return save_data(metadata, valid_data, invalid_data)
+
+
+def load_input_data(metadata: dict) -> list:
+    '''
+    Gets the input data from metadata. It's located in one or more files.
+
+    Args:
+        metadata (dict): Dictionary containing metadata.
+
+    Returns:
+        input_data (list): Records in JSON format
+    '''
+    input_data = []
+    for flow in metadata.get('dataflows', []):
+        print(flow.get('sources'))
+        for source in flow.get('sources', []):
+            file_path = Path(source.get('path','')) / f'{source.get("name","")}'
+            try:
+                with open(file_path, 'r') as f: # TODO Other types of formats??
+                    input_data.extend(json.loads(line.strip()) for line in f if line.strip())
+            except (json.JSONDecodeError, FileNotFoundError) as e:
+                        print(f'Error processing file {file_path}: {e}')
+
+    return input_data
+
+
+def process_data(metadata: dict, input_data: dict) -> Tuple[List, List]:
     '''
     Processes records by applying validations defined in the metadata.
 
@@ -56,8 +97,36 @@ def process_data(metadata: dict, input_data: dict) -> tuple[list, list]:
         else:
             record['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             valid_records.append(record)
-
+            
     return valid_records, invalid_records
+
+def save_data(valid_data: list, invalid_data: list, metadata: dict) -> None:
+    '''
+    Saves processed data based on metadata configuration.
+
+    Args:
+        valid_data (list): Records that passed validations.
+        invalid_data (list): Records that failed validations.
+        metadata (dict): Dictionary containing metadata.
+    '''
+    print(valid_data)
+    valid_config = get_sink_config(metadata, 'ok_with_date')
+    invalid_config = get_sink_config(metadata, 'validation_ko')
+
+    # Save valid records in all configured paths
+    for path in valid_config['paths']:
+        file_path = Path(path) / f'{valid_config["filename"]}{formats.get(valid_config["format"])}'
+        os.makedirs(Path(path), exist_ok=True)
+        with open(file_path, savemode.get(valid_config['save_mode'])) as f:
+            json.dump(valid_data, f, indent=4)
+
+    # Save invalid records in all configured paths
+    for path in invalid_config['paths']:
+        file_path = Path(path) / f'{invalid_config["filename"]}{formats.get(invalid_config["format"])}'
+        os.makedirs(Path(path), exist_ok=True)
+        with open(file_path, savemode.get(invalid_config['save_mode'])) as f:
+            json.dump(invalid_data, f, indent=4)
+
 
 def get_sink_config(metadata: dict, input_type: str) -> dict:
     '''
@@ -80,58 +149,3 @@ def get_sink_config(metadata: dict, input_type: str) -> dict:
                         'save_mode': sink.get('saveMode', 'OVERWRITE')
                     }
     return None
-
-def save_data(valid_data: list, invalid_data: list, metadata: dict) -> None:
-    '''
-    Saves processed data based on metadata configuration.
-
-    Args:
-        valid_data (list): Records that passed validations.
-        invalid_data (list): Records that failed validations.
-        metadata (dict): Dictionary containing metadata.
-    '''
-    valid_config = get_sink_config(metadata, 'ok_with_date')
-    invalid_config = get_sink_config(metadata, 'validation_ko')
-
-    # Save valid records in all configured paths
-    for path in valid_config['paths']:
-        file_path = Path(path) / f'{valid_config['filename']}{formats.get(valid_config['format'])}'
-        os.makedirs(Path(path), exist_ok=True)
-        with open(file_path, savemode.get(valid_config['save_mode'])) as f:
-            json.dump(valid_data, f, indent=4)
-
-    # Save invalid records in all configured paths
-    for path in invalid_config['paths']:
-        file_path = Path(path) / f'{invalid_config['filename']}{formats.get(invalid_config['format'])}'
-        os.makedirs(Path(path), exist_ok=True)
-        with open(file_path, savemode.get(invalid_config['save_mode'])) as f:
-            json.dump(invalid_data, f, indent=4)
-
-def get_input_data(metadata: dict) -> list:
-    input_data = []
-    for flow in metadata.get('dataflows', []):
-        for source in flow.get('sources', []):
-            file_path = Path(source.get('path','')) / f'{source.get('name','')}'
-            try:
-                with open(file_path, 'r') as f: # TODO Other types of formats??
-                    input_data.extend(json.loads(line.strip()) for line in f if line.strip())
-            except (json.JSONDecodeError, FileNotFoundError) as e:
-                        print(f'Error processing file {file_path}: {e}')
-
-    return input_data
-
-def load_metadata():
-    with open('metadata.json', 'r') as file:
-        return json.load(file)
-    
-if __name__ == '__main__':
-    # Load metadata
-    with open('metadata.json', 'r') as file:
-        metadata = json.load(file)
-
-    # Load input data
-    input_data = get_input_data(metadata)
-
-    valid_data, invalid_data = process_data(metadata, input_data)
-    # Save output data
-    save_data(valid_data, invalid_data, metadata)
