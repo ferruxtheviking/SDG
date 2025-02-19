@@ -26,7 +26,7 @@ metadata = {
             "sources": [
                 {
                     "name": "person_inputs",
-                    "path": "/data/input/events/person/*",
+                    "path": "/data/input/events/person/",
                     "format": "JSON"
                 }
             ],

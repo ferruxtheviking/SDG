@@ -22,7 +22,7 @@ services:
       retries: 3
 
   airflow:
-    image: apache/airflow:2.6.2
+    build: airflow/
     container_name: airflow
     restart: always
     depends_on:
@@ -34,18 +34,40 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+mysqldb://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS: utf8mb3_bin
+      MONGO_CLIENT_DB: "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/?authSource=admin"
+      MONGO_DATABASE: airflow
+      MONGO_COLLECTION_OK: standard_ok
+      MONGO_COLLECTION_KO: standard_ko
     ports:
       - "8090:8080"
     volumes:
       - ./dags:/opt/airflow/dags
-      - /data:/data
+      - data-volume:/data:rw
     command: >
       bash -c "airflow db init && airflow webserver"
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-#      interval: 20s
-#      timeout: 5s
-#      retries: 4
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 4
+  
+  mongodb:
+    image: mongo:8.0.4-noble
+    container_name: mongodb
+    restart: always
+    depends_on:
+      airflow:
+        condition: service_healthy
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongo_db_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
 
 volumes:
+  data-volume:
   mysql_data:
+  mongo_db_data:

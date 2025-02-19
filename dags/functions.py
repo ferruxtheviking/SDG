@@ -1,6 +1,7 @@
 import os
 import json
 from typing import Tuple, List
+from pymongo import MongoClient
 from pathlib import Path
 from datetime import datetime
 from parameters import validation_functions, formats, savemode
@@ -100,7 +101,37 @@ def process_data(metadata: dict, input_data: dict) -> Tuple[List, List]:
             
     return valid_records, invalid_records
 
-def save_data(valid_data: list, invalid_data: list, metadata: dict) -> None:
+
+def save_data_mongo(valid_data: list, invalid_data: list) -> None:
+    '''
+    Connect to the MongoDB server and update both the valid and invalid data
+
+    Args:
+        valid_data (list): Records that passed validations.
+        invalid_data (list): Records that failed validations.
+    '''
+    mongo_cli           = os.getenv('MONGO_CLIENT_DB')
+    mongo_db_name       = os.getenv('MONGO_DATABASE')
+    mongo_collection_ok = os.getenv('MONGO_COLLECTION_OK')
+    mongo_collection_ko = os.getenv('MONGO_COLLECTION_KO')
+
+    # Connect to Mongo Database
+    client = MongoClient(mongo_cli)
+
+    # Select Database
+    db = client[mongo_db_name]
+
+    # Get both collections
+    collection_ok = db[mongo_collection_ok]
+    collection_ko = db[mongo_collection_ko]
+    if valid_data:
+        collection_ok.insert_many(valid_data)
+    if invalid_data:
+        collection_ko.insert_many(invalid_data)
+    return None
+
+
+def save_data_disk(valid_data: list, invalid_data: list, metadata: dict) -> None:
     '''
     Saves processed data based on metadata configuration.
 
@@ -109,8 +140,7 @@ def save_data(valid_data: list, invalid_data: list, metadata: dict) -> None:
         invalid_data (list): Records that failed validations.
         metadata (dict): Dictionary containing metadata.
     '''
-    print(valid_data)
-    valid_config = get_sink_config(metadata, 'ok_with_date')
+    valid_config   = get_sink_config(metadata, 'ok_with_date')
     invalid_config = get_sink_config(metadata, 'validation_ko')
 
     # Save valid records in all configured paths

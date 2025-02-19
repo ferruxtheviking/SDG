@@ -3,7 +3,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowFailException
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
-from functions import load_input_data, process_data, save_data
+from functions import load_input_data, process_data, save_data_disk, save_data_mongo
 from parameters import metadata
 
 dag_args={
@@ -41,11 +41,16 @@ def process_data_call(**kwargs):
     input_data = kwargs['ti'].xcom_pull(task_ids='load_input_data')
     return process_data(params.get('metadata'), input_data)
 
-def save_data_call(**kwargs):
+def save_data_disk_call(**kwargs):
     params = kwargs['dag_run'].conf
     valid_data = kwargs['ti'].xcom_pull(task_ids='process_data')[0]
     invalid_data = kwargs['ti'].xcom_pull(task_ids='process_data')[1]
-    return save_data(valid_data, invalid_data, params.get('metadata'))
+    return save_data_disk(valid_data, invalid_data, params.get('metadata'))
+
+def save_data_mongo_call(**kwargs):
+    valid_data = kwargs['ti'].xcom_pull(task_ids='process_data')[0]
+    invalid_data = kwargs['ti'].xcom_pull(task_ids='process_data')[1]
+    return save_data_mongo(valid_data, invalid_data)
 
 load_input_data_task = PythonOperator(
     task_id="load_input_data",
@@ -61,11 +66,17 @@ process_data_task = PythonOperator(
     dag=dag
 )
 
-save_data_task = PythonOperator(
-    task_id="save_data",
-    python_callable=save_data_call,
+save_data_disk_task = PythonOperator(
+    task_id="save_data_disk",
+    python_callable=save_data_disk_call,
     provide_context=True,
     dag=dag
 )
 
-load_input_data_task >> process_data_task >> save_data_task
+save_data_mongo_task = PythonOperator(
+    task_id="save_data_mongo",
+    python_callable=save_data_mongo_call,
+    provide_context=True,
+    dag=dag
+)
+load_input_data_task >> process_data_task >> [ save_data_disk_task, save_data_mongo_task ]
