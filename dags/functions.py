@@ -6,22 +6,6 @@ from pathlib import Path
 from datetime import datetime
 from parameters import validation_functions, formats, savemode
 
-def load_input_data_call(**kwargs):
-    metadata = kwargs['dag_run'].conf
-    return load_input_data(metadata)
-
-def process_data_call(**kwargs):
-    metadata = kwargs['dag_run'].conf
-    input_data = kwargs['ti'].xcom_pull(task_ids='load_input_data')
-    return process_data(metadata, input_data)
-
-def save_data_call(**kwargs):
-    metadata = kwargs['dag_run'].conf
-    valid_data = kwargs['ti'].xcom_pull(task_ids='process_data')[0]
-    invalid_data = kwargs['ti'].xcom_pull(task_ids='process_data')[1]
-    return save_data(metadata, valid_data, invalid_data)
-
-
 def load_input_data(metadata: dict) -> list:
     '''
     Gets the input data from metadata. It's located in one or more files.
