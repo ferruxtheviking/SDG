@@ -1,6 +1,6 @@
 # SDG Prueba Técnica
 
-Este repositorio contiene todos los archivos necesarios para montar el entorno de la prueba en cuestión. Las pruebas se han realizado desde un Ubuntu 22.04, por lo tanto, se recomienda su uso si se quiere replicar.
+Este repositorio contiene todos los archivos necesarios para montar el entorno de la prueba en cuestión. Las pruebas se han realizado desde un Ubuntu 22.04, por lo tanto, se recomienda su uso si se quiere replicar. Es necesario tener instalado en la máquina Docker y Docker compose.
 
 ## Introducción
 
@@ -26,7 +26,7 @@ Para desplegar el proyecto, descomprimir el archivo ZIP o descargar directamente
 
 Dentro de la carpeta es necesario crear un archivo que aloje las variables de entorno necesarias. 
 
-- Crear archivo `.env`
+- Crear archivo `.env`:
 ```bash
    nano .env
    ```
