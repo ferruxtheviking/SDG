@@ -3,8 +3,8 @@ from airflow import DAG
 from airflow.exceptions import AirflowFailException
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
-from functions import load_input_data, process_data, save_data_disk, save_data_mongo
-from parameters import metadata
+from functions import load_input_data, load_input_data_parameters, process_data, save_data_disk, save_data_mongo
+from parameters import metadata, input
 
 dag_args={
     "depends_on_past": False,
@@ -24,10 +24,7 @@ dag = DAG(
     catchup=False,
     tags=["test"],
     params={'metadata': metadata,
-            'input': [{
-                'name': 'Sergio',
-                'age' : 19
-            }]}
+            'input': input}
 )
 
 def load_input_data_call(**kwargs):
@@ -35,6 +32,12 @@ def load_input_data_call(**kwargs):
     if 'metadata' not in params:
         raise AirflowFailException("There's no metadata")
     return load_input_data(params.get('metadata'))
+
+def load_input_data_call_2(**kwargs):
+    params = kwargs['dag_run'].conf
+    if 'metadata' not in params and 'input' not in params:
+        raise AirflowFailException("There's no metadata or input")
+    return load_input_data_parameters(params.get('input'))
 
 def process_data_call(**kwargs):
     params = kwargs['dag_run'].conf
@@ -54,7 +57,7 @@ def save_data_mongo_call(**kwargs):
 
 load_input_data_task = PythonOperator(
     task_id="load_input_data",
-    python_callable=load_input_data_call,
+    python_callable=load_input_data_call_2,
     provide_context=True,
     dag=dag
 )

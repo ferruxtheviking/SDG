@@ -29,6 +29,32 @@ def load_input_data(metadata: dict) -> list:
 
     return input_data
 
+def load_input_data_parameters(input_data_raw: dict) -> list:
+    '''
+    Gets the input data from parameters in DAG config.
+
+    Args:
+        input_data_raw (dict): Dictionary containing JSON records
+
+    Returns:
+        input_data (list): Records in JSON format
+    '''
+    print(input_data_raw)
+    print(type(input_data_raw))
+    try:
+        input_data = input_data_raw.get('source')
+        if input_data and not isinstance(input_data, list):
+            raise TypeError('The input is not a list')
+        for idx, record in enumerate(input_data):
+             if not isinstance(record, dict):
+                raise TypeError(f"The element [{idx}] it's not JSON")
+    except json.JSONDecodeError as e:
+        raise TypeError(f'Error in JSON decoding: {e}')
+    except TypeError as e:
+        raise TypeError(f'Error: {e}')
+         
+    return input_data
+
 
 def process_data(metadata: dict, input_data: dict) -> Tuple[List, List]:
     '''
@@ -80,7 +106,7 @@ def process_data(metadata: dict, input_data: dict) -> Tuple[List, List]:
             record['error_details'] = errors
             invalid_records.append(record)
         else:
-            record['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            record['datetime'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             valid_records.append(record)
             
     return valid_records, invalid_records
@@ -98,6 +124,7 @@ def save_data_mongo(valid_data: list, invalid_data: list) -> None:
     mongo_db_name       = os.getenv('MONGO_DATABASE')
     mongo_collection_ok = os.getenv('MONGO_COLLECTION_OK')
     mongo_collection_ko = os.getenv('MONGO_COLLECTION_KO')
+    mongo_historic      = os.getenv('MONGO_HISTORIC')
 
     # Connect to Mongo Database
     client = MongoClient(mongo_cli)
@@ -105,13 +132,24 @@ def save_data_mongo(valid_data: list, invalid_data: list) -> None:
     # Select Database
     db = client[mongo_db_name]
 
-    # Get both collections
+    # Get both collections # TODO Duplicated data
     collection_ok = db[mongo_collection_ok]
     collection_ko = db[mongo_collection_ko]
     if valid_data:
         collection_ok.insert_many(valid_data)
     if invalid_data:
         collection_ko.insert_many(invalid_data)
+
+    # Insert historic data 
+    historic_record = {
+        'total_records'  : len(valid_data) + len(invalid_data),
+        'valid_records'  : len(valid_data),
+        'invalid_records': len(invalid_data),
+        'datetime'       : datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    historic = db[mongo_historic]
+    historic.insert_one(historic_record)
+    
     return None
 
 
@@ -128,7 +166,7 @@ def save_data_disk(valid_data: list, invalid_data: list, metadata: dict) -> None
     invalid_config = get_sink_config(metadata, 'validation_ko')
 
     # Save valid records in all configured paths
-    for path in valid_config['paths']:
+    for path in valid_config['paths']: # TODO problems saving lists. If there was other data, there are going to be more lists in just one file
         file_path = Path(path) / f'{valid_config["filename"]}{formats.get(valid_config["format"])}'
         os.makedirs(Path(path), exist_ok=True)
         with open(file_path, savemode.get(valid_config['save_mode'])) as f:

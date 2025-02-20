@@ -13,8 +13,8 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
+    #ports:
+    #  - "3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -38,6 +38,7 @@ services:
       MONGO_DATABASE: airflow
       MONGO_COLLECTION_OK: standard_ok
       MONGO_COLLECTION_KO: standard_ko
+      MONGO_HISTORIC: historic
     ports:
       - "8090:8080"
     volumes:
@@ -58,8 +59,8 @@ services:
     depends_on:
       airflow:
         condition: service_healthy
-    ports:
-      - "27017:27017"
+    #ports:
+    #  - "27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}

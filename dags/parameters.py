@@ -85,3 +85,9 @@ metadata = {
         }
     ]
 }
+
+input = {"source": [
+  {"name": "Xabier", "age": 39, "office": ""},
+  {"name": "Miguel", "office": "RIO"},
+  {"name": "Fran", "age": 31, "office": "RIO"}
+]}
