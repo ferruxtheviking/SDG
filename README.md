@@ -20,8 +20,8 @@ Este proyecto consta de 3 servicios principales ejecutándose en contendores:
 Para desplegar el proyecto, descomprimir el archivo ZIP o descargar directamente del repositorio.
 
 - Acceder a la carpeta:
-```bash 
-   cd SDG-main
+```bash
+   cd SDG
    ```
 
 Dentro de la carpeta es necesario crear un archivo `.env` que aloje las variables de entorno necesarias. Ejemplo:
