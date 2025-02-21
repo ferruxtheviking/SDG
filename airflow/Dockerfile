@@ -1,5 +1,5 @@
 # Base image
-FROM apache/airflow:2.6.2
+FROM apache/airflow:2.10.2
 
 #  Create /data folder and give permissions to airflow user
 USER root 
