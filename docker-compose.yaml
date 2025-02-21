@@ -17,7 +17,7 @@ services:
     #  - "3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
 
@@ -48,7 +48,7 @@ services:
       bash -c "airflow db init && airflow webserver"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 20s
+      interval: 30s
       timeout: 5s
       retries: 4
   
@@ -67,6 +67,28 @@ services:
     volumes:
       - mongo_db_data:/data/db
       - ./mongo-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  api-mongo:
+    build: api-mongo/
+    restart: always
+    container_name: api-mongo
+    ports:
+      - "8091:81"
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      MONGO_CLIENT_DB: "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/?authSource=admin"
+      MONGO_DATABASE: airflow
+      MONGO_COLLECTION_OK: standard_ok
+      MONGO_COLLECTION_KO: standard_ko
+      MONGO_HISTORIC: historic
+    depends_on:
+      mongodb:
+        condition: service_healthy
 
 volumes:
   data-volume:
