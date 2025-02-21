@@ -10,10 +10,11 @@ El objetivo de esta prueba es crear un proceso automático con la siguiente func
 - Guardar el proceso, ya sea en los directorios propuestos en los metadatos o en alguna base de datos
 - Los valores de los metadatos pueden cambiar, por tanto el código debe ser lo menos estático posible para facilitar los cambios
 
-Este proyecto consta de 3 servicios principales ejecutándose en contendores:
+Este proyecto consta de 4 servicios principales ejecutándose en contendores:
 - **Apache Airflow**: Plataforma de gestión de flujo de trabajo, donde se ejecutará el proceso automático
 - **MySQL**: Base de datos que utiliza Apache Airflow
 - **Mongo DB**: Base de datos donde se guardan los registros
+- **API**: Servicio que consulta a Mongo DB y devuelve los datos para poder visualizarlos
 
 ## Instalación
 
@@ -46,8 +47,11 @@ MYSQL_PASSWORD=airflow
 # MONGODB
 MONGO_INITDB_ROOT_USERNAME=root
 MONGO_INITDB_ROOT_PASSWORD=root_password
+
+# API-MONGO
+JWT_SECRET_KEY=SDG-JWT-1234
 ```
-**Se recomienda cambiar los valores, en especial las contraseñas.**
+**Se recomienda cambiar los valores, en especial las contraseñas y el secreto de JWT.**
 
 - Dar permisos de ejecución al script de instalación:
 ```bash
@@ -59,5 +63,16 @@ MONGO_INITDB_ROOT_PASSWORD=root_password
    ./airflow_setup.sh
    ``` 
 
-Una vez finalizado el script, se puede acceder a Airflow:
-<http://localhost:8090>
+Una vez finalizado el script, se puede acceder a Airflow: <http://localhost:8090>
+
+Para consultar la API se necesita crear un JWT con el `JWT_SECRET_KEY` que se ha utilizado. Es necesario añadir el token en un Header con nombre `JWT`.
+
+Los endpoints son:
+- GET <http://localhost:8091/collection_ok>
+- GET <http://localhost:8091/collection_ko>
+- GET <http://localhost:8091/historic>
+
+Un ejemplo para hacer la petición con `curl`:
+```bash
+   curl -H "JWT: <JWT_SECRET_KEY>" http://localhost:8091/collection_ko
+   ```
