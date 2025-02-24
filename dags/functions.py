@@ -18,7 +18,6 @@ def load_input_data(metadata: dict) -> list:
     '''
     input_data = []
     for flow in metadata.get('dataflows', []):
-        print(flow.get('sources'))
         for source in flow.get('sources', []):
             file_path = Path(source.get('path','')) / f'{source.get("name","")}'
             try:
@@ -39,8 +38,6 @@ def load_input_data_parameters(input_data_raw: dict) -> list:
     Returns:
         input_data (list): Records in JSON format
     '''
-    print(input_data_raw)
-    print(type(input_data_raw))
     try:
         input_data = input_data_raw.get('source')
         if input_data and not isinstance(input_data, list):
@@ -70,15 +67,21 @@ def process_data(metadata: dict, input_data: dict) -> Tuple[List, List]:
             invalid_records (list): Records that failed validations, with error details.
     '''
     # Find validation transformation in metadata
-    validation_transformation = next(
-        (
-            transformation
-            for flow in metadata.get('dataflows', [])
-            for transformation in flow.get('transformations', [])
-            if transformation.get('type') == 'validate_fields'
-        ),
-        None
-    )
+    if not metadata.get("dataflows", []):
+        raise ValueError("'dataflows' field is empty or doesn't exist")
+    
+    validation_transformation = None
+    for flow in metadata.get("dataflows", []):
+        if not flow.get("transformations", []):
+            raise ValueError("'transformations' field is empty or doesn't exist")
+        
+        for transformation in flow.get("transformations", []):
+            if transformation.get("type") == "validate_fields":
+                validation_transformation = transformation
+                break
+        
+        if validation_transformation is None:
+            raise ValueError("'transformations' field doesn't have 'validate_fields' type")
 
     validations = (
         validation_transformation.get('params', {}).get('validations', [])

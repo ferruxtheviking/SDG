@@ -1,6 +1,6 @@
 # Validation functions
 validation_functions = {
-    "notEmpty" : lambda x: isinstance(x, str) and bool(x.strip()),
+    "notEmpty" : lambda x: x is not None and bool(x),
     "notNull"  : lambda x: x is not None,
     "isInteger": lambda x: isinstance(x, int),
     "positive" : lambda x: isinstance(x, int) and x > 0
